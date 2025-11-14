@@ -34,6 +34,35 @@ A TypeScript REST API backend for managing employee vacation/leave requests with
 - **No unnecessary comments** - Code should be self-explanatory
 - **Follow best practices** - But keep it straightforward
 - **Clean separation of concerns** - Use the layered architecture
+- **File naming**: Use kebab-case with module prefix (e.g., `auth.utils.ts`, `leave-request.service.ts`)
+
+### Important Import Rules
+
+- **Zod imports**: Always use `import { z } from 'zod/v4'` (not just `'zod'`)
+- **Database**: Import from `'../../db/client'` (not `'../../config/database'`)
+- **Errors**: Import from `'../../shared/errors/app-error'` (ConflictError, UnauthorizedError, etc.)
+
+### Service Pattern
+
+- **Always use class-based services**: Services should be implemented as classes with methods
+- **Export singleton instance**: Export a single instance (e.g., `export const authService = new AuthService()`)
+- **Example pattern**:
+  ```typescript
+  class AuthService {
+    async registerUser(data: RegisterRequest): Promise<UserResponse> {
+      // implementation
+    }
+  }
+
+  export const authService = new AuthService();
+  ```
+
+### Module Documentation
+
+- **Each module must have a claude.md file**: Create a `claude.md` file in each module directory
+- **Purpose**: Provides context and documentation about the module's structure, responsibilities, and implementation
+- **Contents**: API endpoints, file details, database schema, testing info, usage examples, and integration notes
+- **Location**: `src/modules/{module-name}/claude.md`
 
 ## Folder Structure
 
@@ -63,33 +92,36 @@ src/
 │           └── response.test.ts
 └── modules/
     ├── auth/
-    │   ├── controller.ts             # Auth HTTP handlers
-    │   ├── service.ts                # Authentication business logic
-    │   ├── routes.ts                 # Auth endpoints
-    │   ├── validators.ts             # Zod schemas for registration/login
-    │   ├── middleware.ts             # JWT verification
-    │   ├── types.ts                  # Auth-related interfaces
-    │   ├── utils.ts                  # JWT & password utilities
+    │   ├── auth.controller.ts        # Auth HTTP handlers
+    │   ├── auth.service.ts           # Authentication business logic
+    │   ├── auth.routes.ts            # Auth endpoints
+    │   ├── auth.validators.ts        # Zod schemas for registration/login
+    │   ├── auth.middleware.ts        # JWT verification
+    │   ├── auth.types.ts             # Auth-related interfaces
+    │   ├── auth.utils.ts             # JWT & password utilities
+    │   ├── claude.md                 # Module documentation
     │   └── __tests__/
-    │       ├── service.test.ts       # Unit tests
-    │       ├── utils.test.ts         # Utils unit tests
-    │       └── integration.test.ts   # E2E endpoint tests
+    │       ├── auth.service.test.ts  # Unit tests
+    │       ├── auth.utils.test.ts    # Utils unit tests
+    │       └── auth.integration.test.ts   # E2E endpoint tests
     ├── leave-request/
-    │   ├── controller.ts             # Leave request HTTP handlers
-    │   ├── service.ts                # Leave request business logic
-    │   ├── routes.ts                 # Leave request endpoints
-    │   ├── validators.ts             # Zod schemas for leave requests
-    │   ├── middleware.ts             # Role-based access control
-    │   ├── types.ts                  # Leave request interfaces
+    │   ├── leaveRequest.controller.ts     # Leave request HTTP handlers
+    │   ├── leaveRequest.service.ts        # Leave request business logic
+    │   ├── leaveRequest.routes.ts         # Leave request endpoints
+    │   ├── leaveRequest.validators.ts     # Zod schemas for leave requests
+    │   ├── leaveRequest.middleware.ts     # Role-based access control
+    │   ├── leaveRequest.types.ts          # Leave request interfaces
+    │   ├── claude.md                      # Module documentation
     │   └── __tests__/
-    │       ├── service.test.ts
-    │       └── integration.test.ts
+    │       ├── leaveRequest.service.test.ts
+    │       └── leaveRequest.integration.test.ts
     └── holidays/
-        ├── controller.ts             # External API HTTP handler
-        ├── service.ts                # External API integration
-        ├── routes.ts                 # External API endpoint
+        ├── holidays.controller.ts    # External API HTTP handler
+        ├── holidays.service.ts       # External API integration
+        ├── holidays.routes.ts        # External API endpoint
+        ├── claude.md                 # Module documentation
         └── __tests__/
-            └── integration.test.ts
+            └── holidays.integration.test.ts
 
 docs/
 ├── database-diagram.md               # Mermaid ERD diagram
@@ -181,7 +213,7 @@ Request → Route → Controller → Service → Model → Database
 ### Responsibilities
 
 - **Models**: Database operations only (CRUD)
-- **Services**: Business logic, validation, data transformation
+- **Services**: Business logic, validation, data transformation (class-based singleton pattern)
 - **Controllers**: HTTP request/response handling
 - **Middleware**: Cross-cutting concerns (auth, validation, errors)
 - **Routes**: Endpoint definitions
@@ -200,42 +232,46 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 2: Authentication Module
 
-1. Write auth tests (modules/auth/**tests**/integration.test.ts)
-2. Auth utilities - JWT & password (modules/auth/utils.ts + modules/auth/**tests**/utils.test.ts)
-3. Auth types (modules/auth/types.ts)
-4. Auth validators (modules/auth/validators.ts)
-5. Auth service (modules/auth/service.ts + modules/auth/**tests**/service.test.ts)
-6. Auth middleware (modules/auth/middleware.ts)
-7. Auth controller (modules/auth/controller.ts)
-8. Auth routes (modules/auth/routes.ts)
-9. Run tests until all pass
+1. Write auth tests (modules/auth/__tests__/auth.integration.test.ts)
+2. Auth utilities - JWT & password (modules/auth/auth.utils.ts + modules/auth/__tests__/auth.utils.test.ts)
+3. Auth types (modules/auth/auth.types.ts)
+4. Auth validators (modules/auth/auth.validators.ts) - Use `import { z } from 'zod/v4'`
+5. Auth service (modules/auth/auth.service.ts + modules/auth/__tests__/auth.service.test.ts)
+6. Auth middleware (modules/auth/auth.middleware.ts)
+7. Auth controller (modules/auth/auth.controller.ts)
+8. Auth routes (modules/auth/auth.routes.ts)
+9. Create module documentation (modules/auth/claude.md)
+10. Run tests until all pass
 
 ### Phase 3: Leave Request Module (Employee CRUD)
 
-1. Write leave request tests (modules/leave-request/**tests**/integration.test.ts)
-2. Leave request types (modules/leave-request/types.ts)
-3. Leave request validators (modules/leave-request/validators.ts)
-4. Leave request service (modules/leave-request/service.ts + modules/leave-request/**tests**/service.test.ts)
-5. Leave request controller (modules/leave-request/controller.ts)
-6. Leave request routes (modules/leave-request/routes.ts)
-7. Run tests until all pass
+1. Write leave request tests (modules/leave-request/__tests__/leaveRequest.integration.test.ts)
+2. Leave request types (modules/leave-request/leaveRequest.types.ts)
+3. Leave request validators (modules/leave-request/leaveRequest.validators.ts) - Use `import { z } from 'zod/v4'`
+4. Leave request service (modules/leave-request/leaveRequest.service.ts + modules/leave-request/__tests__/leaveRequest.service.test.ts)
+5. Leave request controller (modules/leave-request/leaveRequest.controller.ts)
+6. Leave request routes (modules/leave-request/leaveRequest.routes.ts)
+7. Create module documentation (modules/leave-request/claude.md)
+8. Run tests until all pass
 
 ### Phase 4: Admin Approval System
 
-1. Write admin tests (extend modules/leave-request/**tests**/integration.test.ts)
-2. Role middleware (modules/leave-request/middleware.ts)
-3. Admin service methods (extend modules/leave-request/service.ts)
-4. Admin controller methods (extend modules/leave-request/controller.ts)
-5. Admin routes (extend modules/leave-request/routes.ts)
-6. Run tests until all pass
+1. Write admin tests (extend modules/leave-request/__tests__/leaveRequest.integration.test.ts)
+2. Role middleware (modules/leave-request/leaveRequest.middleware.ts)
+3. Admin service methods (extend modules/leave-request/leaveRequest.service.ts)
+4. Admin controller methods (extend modules/leave-request/leaveRequest.controller.ts)
+5. Admin routes (extend modules/leave-request/leaveRequest.routes.ts)
+6. Update module documentation (modules/leave-request/claude.md)
+7. Run tests until all pass
 
 ### Phase 5: External API Integration (Holidays)
 
-1. Write holidays tests (modules/holidays/**tests**/integration.test.ts)
-2. Holidays service (modules/holidays/service.ts)
-3. Holidays controller (modules/holidays/controller.ts)
-4. Holidays routes (modules/holidays/routes.ts)
-5. Run tests until all pass
+1. Write holidays tests (modules/holidays/__tests__/holidays.integration.test.ts)
+2. Holidays service (modules/holidays/holidays.service.ts)
+3. Holidays controller (modules/holidays/holidays.controller.ts)
+4. Holidays routes (modules/holidays/holidays.routes.ts)
+5. Create module documentation (modules/holidays/claude.md)
+6. Run tests until all pass
 
 ### Phase 6: Documentation
 
@@ -366,7 +402,6 @@ NODE_ENV=development
 
 ### Coverage Target
 
-- Minimum 80% overall coverage
 - Focus on critical paths (auth, business logic)
 
 ## Security Checklist
@@ -436,9 +471,13 @@ Import endpoints and test:
 - Don't add comments for obvious code
 - Use TypeScript types for documentation
 - Follow the layered architecture strictly
-- Validate all inputs with Zod
+- Validate all inputs with Zod (import from 'zod/v4')
 - Handle all errors gracefully
 - Return consistent response formats
 - Test authorization thoroughly
 - Keep services focused and small
-- use camel case in file namings
+- Use kebab-case in file namings with module prefix (e.g., auth.utils.ts)
+- Import db from '../../db/client' (not config/database)
+- Import errors from '../../shared/errors/app-error'
+- **Services must be class-based**: Always implement services as classes and export singleton instance
+- **Create claude.md for each module**: Document structure, API endpoints, files, testing, and integration notes
