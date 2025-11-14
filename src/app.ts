@@ -4,18 +4,14 @@ import {
   errorMiddleware,
   notFoundMiddleware,
 } from './shared/middleware/error-middleware.js';
-import authRoutes from './modules/auth/auth.routes.js';
+import router from './router.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', message: 'MTP Server is running' });
-});
-
-app.use('/api/auth', authRoutes);
+app.use(router);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

@@ -4,7 +4,8 @@
       "Bash(dir:*)",
       "Bash(tree:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(npm test)"
+      "Bash(npm test)",
+      "Bash(bun test:*)"
     ],
     "deny": [],
     "ask": []

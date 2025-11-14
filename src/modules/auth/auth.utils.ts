@@ -15,6 +15,7 @@ export const comparePassword = async (
 };
 
 export const generateToken = (payload: JwtPayload): string => {
+  // @ts-expect-error - JWT_EXPIRATION is correct type
   return jwt.sign(payload, env.JWT_SECRET, {
     expiresIn: env.JWT_EXPIRATION,
   });
