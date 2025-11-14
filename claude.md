@@ -5,6 +5,7 @@
 **Manager Terminów Pracowniczych (MTP)** - Employee Leave Management System
 
 A TypeScript REST API backend for managing employee vacation/leave requests with two user roles:
+
 - **Employee**: Register, login, submit/manage leave requests
 - **Administrator**: Approve or reject employee leave requests
 
@@ -21,12 +22,14 @@ A TypeScript REST API backend for managing employee vacation/leave requests with
 ## Development Philosophy
 
 ### TDD (Test-Driven Development)
+
 1. Write test first for the endpoint
 2. Implement the endpoint
 3. Run tests and iterate until all pass
 4. Move to next endpoint
 
 ### Code Style
+
 - **Simple POC-level code** - Don't overcomplicate
 - **No unnecessary comments** - Code should be self-explanatory
 - **Follow best practices** - But keep it straightforward
@@ -96,6 +99,7 @@ docs/
 ## Database Schema (Drizzle ORM)
 
 ### Users Table
+
 ```typescript
 // src/db/schema.ts
 export const users = sqliteTable('users', {
@@ -104,33 +108,46 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   fullName: text('full_name').notNull(),
   role: text('role', { enum: ['employee', 'admin'] }).notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 ```
 
 ### Leave Requests Table
+
 ```typescript
 // src/db/schema.ts
 export const leaveRequests = sqliteTable('leave_requests', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
   endDate: integer('end_date', { mode: 'timestamp' }).notNull(),
   reason: text('reason').notNull(),
-  status: text('status', { enum: ['pending', 'approved', 'rejected'] }).notNull().default('pending'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected'] })
+    .notNull()
+    .default('pending'),
   adminComment: text('admin_comment'),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`CURRENT_TIMESTAMP`)
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 ```
 
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user (employee or admin)
 - `POST /api/auth/login` - Login and receive JWT token
 
 ### Leave Requests (Employee)
+
 - `POST /api/leave-requests` - Create leave request [Auth Required]
 - `GET /api/leave-requests` - Get own leave requests [Auth Required]
 - `GET /api/leave-requests/:id` - Get specific leave request [Auth Required]
@@ -138,11 +155,13 @@ export const leaveRequests = sqliteTable('leave_requests', {
 - `DELETE /api/leave-requests/:id` - Delete pending request [Auth Required]
 
 ### Admin Operations
+
 - `GET /api/admin/leave-requests` - Get all leave requests [Admin Required]
 - `PATCH /api/admin/leave-requests/:id/approve` - Approve request [Admin Required]
 - `PATCH /api/admin/leave-requests/:id/reject` - Reject request [Admin Required]
 
 ### External API
+
 - `GET /api/holidays/:year/:countryCode` - Get public holidays from external API [Auth Required]
 
 **External API**: Nager.Date API (https://date.nager.at/api/v3/PublicHolidays/{year}/{countryCode})
@@ -152,6 +171,7 @@ export const leaveRequests = sqliteTable('leave_requests', {
 **Repository + Service Layer Pattern**
 
 ### Flow
+
 ```
 Request → Route → Controller → Service → Model → Database
                      ↓
@@ -159,6 +179,7 @@ Request → Route → Controller → Service → Model → Database
 ```
 
 ### Responsibilities
+
 - **Models**: Database operations only (CRUD)
 - **Services**: Business logic, validation, data transformation
 - **Controllers**: HTTP request/response handling
@@ -168,36 +189,40 @@ Request → Route → Controller → Service → Model → Database
 ## Implementation Phases
 
 ### Phase 1: Foundation
+
 1. Environment configuration (.env, config/env.ts using @t3-oss/env-core)
 2. Database schema (db/schema.ts with Drizzle)
 3. Database connection (config/database.ts with better-sqlite3)
-4. Error handling (shared/middleware/errorHandler.ts, custom error classes)
+4. Error handling (shared/middleware/error-handler.ts, custom error classes)
 5. Response utilities (shared/utils/response.ts)
 6. Validation middleware (shared/middleware/validation.ts)
 7. Express types extension (shared/types/express.d.ts)
 
 ### Phase 2: Authentication Module
-1. Write auth tests (modules/auth/__tests__/integration.test.ts)
-2. Auth utilities - JWT & password (modules/auth/utils.ts + modules/auth/__tests__/utils.test.ts)
+
+1. Write auth tests (modules/auth/**tests**/integration.test.ts)
+2. Auth utilities - JWT & password (modules/auth/utils.ts + modules/auth/**tests**/utils.test.ts)
 3. Auth types (modules/auth/types.ts)
 4. Auth validators (modules/auth/validators.ts)
-5. Auth service (modules/auth/service.ts + modules/auth/__tests__/service.test.ts)
+5. Auth service (modules/auth/service.ts + modules/auth/**tests**/service.test.ts)
 6. Auth middleware (modules/auth/middleware.ts)
 7. Auth controller (modules/auth/controller.ts)
 8. Auth routes (modules/auth/routes.ts)
 9. Run tests until all pass
 
 ### Phase 3: Leave Request Module (Employee CRUD)
-1. Write leave request tests (modules/leave-request/__tests__/integration.test.ts)
+
+1. Write leave request tests (modules/leave-request/**tests**/integration.test.ts)
 2. Leave request types (modules/leave-request/types.ts)
 3. Leave request validators (modules/leave-request/validators.ts)
-4. Leave request service (modules/leave-request/service.ts + modules/leave-request/__tests__/service.test.ts)
+4. Leave request service (modules/leave-request/service.ts + modules/leave-request/**tests**/service.test.ts)
 5. Leave request controller (modules/leave-request/controller.ts)
 6. Leave request routes (modules/leave-request/routes.ts)
 7. Run tests until all pass
 
 ### Phase 4: Admin Approval System
-1. Write admin tests (extend modules/leave-request/__tests__/integration.test.ts)
+
+1. Write admin tests (extend modules/leave-request/**tests**/integration.test.ts)
 2. Role middleware (modules/leave-request/middleware.ts)
 3. Admin service methods (extend modules/leave-request/service.ts)
 4. Admin controller methods (extend modules/leave-request/controller.ts)
@@ -205,13 +230,15 @@ Request → Route → Controller → Service → Model → Database
 6. Run tests until all pass
 
 ### Phase 5: External API Integration (Holidays)
-1. Write holidays tests (modules/holidays/__tests__/integration.test.ts)
+
+1. Write holidays tests (modules/holidays/**tests**/integration.test.ts)
 2. Holidays service (modules/holidays/service.ts)
 3. Holidays controller (modules/holidays/controller.ts)
 4. Holidays routes (modules/holidays/routes.ts)
 5. Run tests until all pass
 
 ### Phase 6: Documentation
+
 1. Database diagram (docs/database-diagram.md with Mermaid)
 2. User stories (docs/user-stories.md)
 3. API documentation in README or separate doc
@@ -219,14 +246,18 @@ Request → Route → Controller → Service → Model → Database
 ## Drizzle ORM Setup
 
 ### Required Dependencies
+
 Install Drizzle and better-sqlite3:
+
 ```bash
 npm install drizzle-orm better-sqlite3
 npm install -D drizzle-kit @types/better-sqlite3
 ```
 
 ### Drizzle Config
+
 Create `drizzle.config.ts` in project root:
+
 ```typescript
 import type { Config } from 'drizzle-kit';
 
@@ -235,12 +266,13 @@ export default {
   out: './src/db/migrations',
   driver: 'better-sqlite3',
   dbCredentials: {
-    url: process.env.DATABASE_PATH || './mtp.db'
-  }
+    url: process.env.DATABASE_PATH || './mtp.db',
+  },
 } satisfies Config;
 ```
 
 ### Drizzle Commands
+
 ```bash
 npm run db:generate   # Generate migrations from schema
 npm run db:migrate    # Run migrations (push to database)
@@ -248,6 +280,7 @@ npm run db:studio     # Open Drizzle Studio (GUI)
 ```
 
 Add to package.json scripts:
+
 ```json
 "db:generate": "drizzle-kit generate",
 "db:migrate": "drizzle-kit migrate",
@@ -257,6 +290,7 @@ Add to package.json scripts:
 ## Environment Variables
 
 Create `.env` file:
+
 ```
 PORT=3000
 DATABASE_PATH=./mtp.db
@@ -268,28 +302,33 @@ NODE_ENV=development
 ## Validation Rules
 
 ### Registration
+
 - Email: valid email format, unique
 - Password: min 8 characters
 - Full name: required, min 2 characters
 - Role: 'employee' or 'admin'
 
 ### Login
+
 - Email: required, valid format
 - Password: required
 
 ### Leave Request
+
 - Start date: required, cannot be in the past
 - End date: required, must be after start_date
 - Reason: required, min 10 characters
 - User can only have one pending request at a time (business rule)
 
 ### Admin Actions
+
 - Can only approve/reject pending requests
 - Must provide admin_comment when rejecting
 
 ## Error Handling
 
 ### Standard Error Response
+
 ```json
 {
   "success": false,
@@ -302,6 +341,7 @@ NODE_ENV=development
 ```
 
 ### Standard Success Response
+
 ```json
 {
   "success": true,
@@ -312,10 +352,12 @@ NODE_ENV=development
 ## Testing Strategy
 
 ### Unit Tests
+
 - Utils (JWT, password hashing)
 - Services (business logic with mocked models)
 
 ### Integration Tests
+
 - Full endpoint flows with real database (in-memory or test DB)
 - Authentication flow
 - Authorization checks
@@ -323,6 +365,7 @@ NODE_ENV=development
 - Error scenarios
 
 ### Coverage Target
+
 - Minimum 80% overall coverage
 - Focus on critical paths (auth, business logic)
 
@@ -362,6 +405,7 @@ npm test:watch
 ## Testing with Postman
 
 Import endpoints and test:
+
 1. Register admin and employee users
 2. Login to get JWT tokens
 3. Create leave requests as employee
@@ -397,3 +441,4 @@ Import endpoints and test:
 - Return consistent response formats
 - Test authorization thoroughly
 - Keep services focused and small
+- use camel case in file namings
