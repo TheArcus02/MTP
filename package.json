@@ -8,13 +8,18 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/db-seed.ts",
     "test": "jest --coverage",
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@libsql/client": "^0.15.15",
     "@t3-oss/env-core": "^0.13.8",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
@@ -25,7 +30,6 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.5",
     "@types/bcryptjs": "^3.0.0",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
