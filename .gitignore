@@ -3,3 +3,5 @@ dist
 .env
 .vscode
 mtp.db
+test.db
+coverage
