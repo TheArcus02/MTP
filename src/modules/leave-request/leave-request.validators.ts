@@ -63,3 +63,11 @@ export const updateLeaveRequestSchema = z
 export const leaveRequestIdSchema = z.object({
   id: z.string().regex(/^\d+$/, 'Invalid ID format').transform(Number),
 });
+
+export const approveLeaveRequestSchema = z.object({
+  adminComment: z.string().optional(),
+});
+
+export const rejectLeaveRequestSchema = z.object({
+  adminComment: z.string().min(1, 'Admin comment is required for rejection'),
+});

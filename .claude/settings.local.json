@@ -8,7 +8,8 @@
       "Bash(bun test:*)",
       "Bash(mkdir:*)",
       "Bash(npm test:*)",
-      "Bash(bun run:*)"
+      "Bash(bun run:*)",
+      "Bash(npm run db:push:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,10 +2,11 @@
 
 ## Overview
 
-The leave request module handles employee leave/vacation request management with full CRUD operations. Employees can create, view, update, and delete their own leave requests.
+The leave request module handles employee leave/vacation request management with full CRUD operations. Employees can create, view, update, and delete their own leave requests. Administrators can view all leave requests and approve or reject them.
 
 ## Responsibilities
 
+### Employee Functions
 - Create leave requests with start date, end date, and reason
 - View all leave requests for the authenticated user
 - View a specific leave request by ID
@@ -13,18 +14,26 @@ The leave request module handles employee leave/vacation request management with
 - Delete pending leave requests
 - Enforce business rule: only one pending request per user at a time
 
+### Admin Functions
+- View all leave requests from all users
+- Approve pending leave requests (with optional comment)
+- Reject pending leave requests (with mandatory comment)
+- Status protection: only pending requests can be approved/rejected
+
 ## Module Structure
 
 ```
 leave-request/
-├── leave-request.controller.ts    # HTTP request/response handlers
+├── leave-request.controller.ts    # HTTP request/response handlers (employee & admin)
 ├── leave-request.service.ts       # Business logic (class-based)
-├── leave-request.routes.ts        # Route definitions
+├── leave-request.routes.ts        # Employee route definitions
+├── admin.routes.ts                # Admin route definitions
 ├── leave-request.validators.ts    # Zod validation schemas
+├── leave-request.middleware.ts    # Role-based access control (requireAdmin)
 ├── leave-request.types.ts         # TypeScript interfaces
 ├── claude.md                      # This documentation file
 └── __tests__/
-    ├── integration.test.ts        # E2E endpoint tests
+    ├── integration.test.ts        # E2E endpoint tests (employee & admin)
     └── service.test.ts            # Service unit tests
 ```
 
@@ -182,6 +191,113 @@ Authorization: Bearer <jwt_token>
 - 404: Leave request not found or belongs to another user
 - 409: Only pending requests can be deleted
 
+## Admin Endpoints
+
+### GET /api/admin/leave-requests
+Get all leave requests from all users (admin only)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```typescript
+{
+  success: true;
+  data: LeaveRequestResponse[];  // Array of all leave requests
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Access denied (not an admin)
+
+### PATCH /api/admin/leave-requests/:id/approve
+Approve a pending leave request (admin only)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**URL Parameters:**
+- `id` (number): Leave request ID
+
+**Request Body:**
+```typescript
+{
+  adminComment?: string;  // Optional comment
+}
+```
+
+**Response (200):**
+```typescript
+{
+  success: true;
+  data: {
+    id: number;
+    userId: number;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+    status: 'approved';
+    adminComment: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+}
+```
+
+**Errors:**
+- 401: Not authenticated
+- 403: Access denied (not an admin)
+- 404: Leave request not found
+- 409: Only pending requests can be approved
+
+### PATCH /api/admin/leave-requests/:id/reject
+Reject a pending leave request (admin only)
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**URL Parameters:**
+- `id` (number): Leave request ID
+
+**Request Body:**
+```typescript
+{
+  adminComment: string;  // Required - reason for rejection
+}
+```
+
+**Response (200):**
+```typescript
+{
+  success: true;
+  data: {
+    id: number;
+    userId: number;
+    startDate: Date;
+    endDate: Date;
+    reason: string;
+    status: 'rejected';
+    adminComment: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+}
+```
+
+**Errors:**
+- 400: Validation error (adminComment required)
+- 401: Not authenticated
+- 403: Access denied (not an admin)
+- 404: Leave request not found
+- 409: Only pending requests can be rejected
+
 ## Files Detail
 
 ### leave-request.service.ts
@@ -216,6 +332,23 @@ Authorization: Bearer <jwt_token>
   - Only allows deletion of 'pending' requests
   - Permanently deletes the request
 
+- `getAllLeaveRequests(): Promise<LeaveRequestResponse[]>`
+  - Retrieves all leave requests from all users (admin only)
+  - Orders by creation date
+  - Returns array of all leave requests
+
+- `approveLeaveRequest(requestId: number, data: ApproveLeaveRequestInput): Promise<LeaveRequestResponse>`
+  - Verifies request exists
+  - Only allows approval of 'pending' requests
+  - Updates status to 'approved' and sets optional adminComment
+  - Returns updated request
+
+- `rejectLeaveRequest(requestId: number, data: RejectLeaveRequestInput): Promise<LeaveRequestResponse>`
+  - Verifies request exists
+  - Only allows rejection of 'pending' requests
+  - Updates status to 'rejected' and sets mandatory adminComment
+  - Returns updated request
+
 **Private Methods:**
 - `mapToResponse(request): LeaveRequestResponse`
   - Maps database record to response format
@@ -223,7 +356,7 @@ Authorization: Bearer <jwt_token>
 **Export:** `export const leaveRequestService = new LeaveRequestService()`
 
 ### leave-request.controller.ts
-**Functions:**
+**Employee Functions:**
 - `createLeaveRequest(req: Request, res: Response): Promise<void>`
   - Extracts userId from req.user (set by authenticate middleware)
   - Calls `leaveRequestService.createLeaveRequest()`
@@ -249,17 +382,58 @@ Authorization: Bearer <jwt_token>
   - Calls `leaveRequestService.deleteLeaveRequest()`
   - Returns 200 status with success message
 
+**Admin Functions:**
+- `getAllLeaveRequests(req: Request, res: Response): Promise<void>`
+  - Calls `leaveRequestService.getAllLeaveRequests()`
+  - Returns 200 status with array of all requests
+
+- `approveLeaveRequest(req: Request, res: Response): Promise<void>`
+  - Extracts requestId from params and data from body
+  - Calls `leaveRequestService.approveLeaveRequest()`
+  - Returns 200 status with updated request
+
+- `rejectLeaveRequest(req: Request, res: Response): Promise<void>`
+  - Extracts requestId from params and data from body
+  - Calls `leaveRequestService.rejectLeaveRequest()`
+  - Returns 200 status with updated request
+
 ### leave-request.routes.ts
-Defines leave request endpoints with authentication and validation
+Defines employee leave request endpoints with authentication and validation
 
 **Routes:**
-- `POST /` → authenticate → validate(createLeaveRequestSchema) → asyncMiddleware(createLeaveRequest)
-- `GET /` → authenticate → asyncMiddleware(getUserLeaveRequests)
-- `GET /:id` → authenticate → validate(leaveRequestIdSchema, 'params') → asyncMiddleware(getLeaveRequestById)
-- `PUT /:id` → authenticate → validate(leaveRequestIdSchema, 'params') → validate(updateLeaveRequestSchema) → asyncMiddleware(updateLeaveRequest)
-- `DELETE /:id` → authenticate → validate(leaveRequestIdSchema, 'params') → asyncMiddleware(deleteLeaveRequest)
+- `POST /` → authedMiddleware → validate(createLeaveRequestSchema) → asyncMiddleware(createLeaveRequest)
+- `GET /` → authedMiddleware → asyncMiddleware(getUserLeaveRequests)
+- `GET /:id` → authedMiddleware → validate(leaveRequestIdSchema, 'params') → asyncMiddleware(getLeaveRequestById)
+- `PUT /:id` → authedMiddleware → validate(leaveRequestIdSchema, 'params') → validate(updateLeaveRequestSchema) → asyncMiddleware(updateLeaveRequest)
+- `DELETE /:id` → authedMiddleware → validate(leaveRequestIdSchema, 'params') → asyncMiddleware(deleteLeaveRequest)
 
 **Mount Point:** `/api/leave-requests` (configured in router.ts)
+
+### admin.routes.ts
+Defines admin-only leave request endpoints with authentication, authorization, and validation
+
+**Routes:**
+- `GET /leave-requests` → authedMiddleware → requireAdmin → asyncMiddleware(getAllLeaveRequests)
+- `PATCH /leave-requests/:id/approve` → authedMiddleware → requireAdmin → validate(leaveRequestIdSchema, 'params') → validate(approveLeaveRequestSchema) → asyncMiddleware(approveLeaveRequest)
+- `PATCH /leave-requests/:id/reject` → authedMiddleware → requireAdmin → validate(leaveRequestIdSchema, 'params') → validate(rejectLeaveRequestSchema) → asyncMiddleware(rejectLeaveRequest)
+
+**Mount Point:** `/api/admin` (configured in router.ts)
+
+### leave-request.middleware.ts
+Role-based access control middleware
+
+**Function:** `requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction)`
+
+**Purpose:** Verifies that the authenticated user has admin role
+
+**Process:**
+1. Extracts userId from req.user (set by authedMiddleware)
+2. Queries database for user record
+3. Checks if user.role === 'admin'
+4. Calls next() if admin
+5. Throws ForbiddenError (403) if not admin or user not found
+
+**Usage:** Applied to all admin routes after authedMiddleware
 
 ### leave-request.validators.ts
 Zod validation schemas
@@ -279,6 +453,12 @@ Zod validation schemas
 - `leaveRequestIdSchema`: Validates route params
   - id: numeric string converted to number
 
+- `approveLeaveRequestSchema`: Validates approval data
+  - adminComment: optional string
+
+- `rejectLeaveRequestSchema`: Validates rejection data
+  - adminComment: required string (min 1 character)
+
 **Import Note:** Always use `import { z } from 'zod/v4'`
 
 ### leave-request.types.ts
@@ -289,6 +469,8 @@ TypeScript interfaces for type safety
 - `CreateLeaveRequestInput`: Creation payload
 - `UpdateLeaveRequestInput`: Update payload
 - `LeaveRequestResponse`: Full leave request data returned to client
+- `ApproveLeaveRequestInput`: Approval payload with optional adminComment
+- `RejectLeaveRequestInput`: Rejection payload with required adminComment
 
 ## Database
 
@@ -320,13 +502,20 @@ TypeScript interfaces for type safety
 
 5. **Status Protection**: Only pending requests can be updated or deleted. Approved/rejected requests are immutable (by employees).
 
+6. **Admin Status Protection**: Only pending requests can be approved or rejected by admins. Already approved/rejected requests cannot be changed.
+
+7. **Rejection Comment Required**: Admins must provide a comment when rejecting a leave request to inform the employee of the reason.
+
+8. **Approval Comment Optional**: Admins can optionally provide a comment when approving a leave request.
+
 ## Security Features
 
 - ✅ Authentication required for all endpoints
+- ✅ Role-based access control (admin endpoints require admin role)
 - ✅ User ownership verification (users can only access their own requests)
 - ✅ Input validation with Zod
 - ✅ SQL injection prevention (Drizzle parameterized queries)
-- ✅ Status-based access control (pending only for updates/deletes)
+- ✅ Status-based access control (pending only for updates/deletes/approvals/rejections)
 
 ## Testing
 
@@ -339,12 +528,15 @@ TypeScript interfaces for type safety
   - Delete (success, not found, unauthorized, non-pending)
 
 ### Integration Tests
-- **integration.test.ts**: E2E tests for all endpoints
+- **integration.test.ts**: E2E tests for all endpoints (employee and admin)
   - POST /api/leave-requests (success, auth, validation, conflict)
   - GET /api/leave-requests (success, auth, filtering)
   - GET /api/leave-requests/:id (success, auth, ownership)
   - PUT /api/leave-requests/:id (success, auth, validation, ownership)
   - DELETE /api/leave-requests/:id (success, auth, ownership)
+  - GET /api/admin/leave-requests (success, auth, authorization)
+  - PATCH /api/admin/leave-requests/:id/approve (success, auth, authorization, validation, status protection)
+  - PATCH /api/admin/leave-requests/:id/reject (success, auth, authorization, validation, status protection, required comment)
 
 **Test Database:** Tests use the same database client, cleaned before each test
 
@@ -357,12 +549,13 @@ import { eq, and } from 'drizzle-orm';
 
 // Internal
 import { db } from '../../db/client';
-import { leaveRequests } from '../../db/schema';
-import { ConflictError, NotFoundError } from '../../shared/errors/app-error';
+import { leaveRequests, users } from '../../db/schema';
+import { ConflictError, NotFoundError, ForbiddenError } from '../../shared/errors/app-error';
 import { successResponse } from '../../shared/utils/response';
 import { validate } from '../../shared/middleware/validationMiddleware';
 import { asyncMiddleware } from '../../shared/middleware/async-middleware';
-import { authenticate } from '../auth/auth.middleware';
+import { authedMiddleware } from '../auth/auth.middleware';
+import { requireAdmin } from './leave-request.middleware';
 ```
 
 ## Usage Example
@@ -409,19 +602,46 @@ curl -X DELETE http://localhost:3000/api/leave-requests/1 \
   -H "Authorization: Bearer <token>"
 ```
 
+### Admin: Get All Leave Requests
+```bash
+curl -X GET http://localhost:3000/api/admin/leave-requests \
+  -H "Authorization: Bearer <admin_token>"
+```
+
+### Admin: Approve Leave Request
+```bash
+curl -X PATCH http://localhost:3000/api/admin/leave-requests/1/approve \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin_token>" \
+  -d '{
+    "adminComment": "Approved - enjoy your vacation!"
+  }'
+```
+
+### Admin: Reject Leave Request
+```bash
+curl -X PATCH http://localhost:3000/api/admin/leave-requests/1/reject \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin_token>" \
+  -d '{
+    "adminComment": "Rejected - insufficient staffing during this period"
+  }'
+```
+
 ## Integration with Other Modules
 
-- **Auth Module**: Uses `authenticate` middleware to protect all endpoints and extract user identity
-- **Admin Module** (Phase 4): Will extend this module with admin-only endpoints for approval/rejection
-- **Express Request Extension**: Uses `req.user.userId` to identify the authenticated user
+- **Auth Module**: Uses `authedMiddleware` to protect all endpoints and extract user identity
+- **Role-based Authorization**: Uses `requireAdmin` middleware to restrict admin endpoints to users with admin role
+- **Express Request Extension**: Uses `req.user.userId` and `req.user.role` to identify the authenticated user
 
-## Future Enhancements (Phase 4 - Admin)
+## Future Enhancements (Out of Scope for POC)
 
-- Admin endpoints to view all requests
-- Admin endpoints to approve/reject requests
-- Role-based middleware to restrict admin actions
-- Admin comments on approval/rejection
-- Notifications when request status changes
+- Email notifications when request status changes
+- Calendar integration for approved leave dates
+- Leave balance tracking
+- Conflict detection (multiple employees on leave same day)
+- Department-based approval workflows
+- Leave request history and analytics
 
 ## Notes
 
@@ -432,5 +652,8 @@ curl -X DELETE http://localhost:3000/api/leave-requests/1 \
 - Import db from '../../db/client'
 - Import errors from '../../shared/errors/app-error'
 - All endpoints require authentication
+- Admin endpoints require admin role (enforced by requireAdmin middleware)
 - Users can only manage their own requests
-- Pending status is enforced for updates/deletes
+- Admins can manage all requests
+- Pending status is enforced for updates/deletes/approvals/rejections
+- Admin comment is required when rejecting, optional when approving

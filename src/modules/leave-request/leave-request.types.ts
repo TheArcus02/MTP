@@ -23,3 +23,11 @@ export interface LeaveRequestResponse {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface ApproveLeaveRequestInput {
+  adminComment?: string;
+}
+
+export interface RejectLeaveRequestInput {
+  adminComment: string;
+}

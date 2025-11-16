@@ -13,29 +13,29 @@ import {
 } from './leave-request.validators';
 import { validate } from '../../shared/middleware/validationMiddleware';
 import { asyncMiddleware } from '../../shared/middleware/async-middleware';
-import { authenticate } from '../auth/auth.middleware';
+import { authedMiddleware } from '../auth/auth.middleware';
 
 const router = Router();
 
 router.post(
   '/',
-  authenticate,
+  authedMiddleware,
   validate(createLeaveRequestSchema),
   asyncMiddleware(createLeaveRequest)
 );
 
-router.get('/', authenticate, asyncMiddleware(getUserLeaveRequests));
+router.get('/', authedMiddleware, asyncMiddleware(getUserLeaveRequests));
 
 router.get(
   '/:id',
-  authenticate,
+  authedMiddleware,
   validate(leaveRequestIdSchema, 'params'),
   asyncMiddleware(getLeaveRequestById)
 );
 
 router.put(
   '/:id',
-  authenticate,
+  authedMiddleware,
   validate(leaveRequestIdSchema, 'params'),
   validate(updateLeaveRequestSchema),
   asyncMiddleware(updateLeaveRequest)
@@ -43,7 +43,7 @@ router.put(
 
 router.delete(
   '/:id',
-  authenticate,
+  authedMiddleware,
   validate(leaveRequestIdSchema, 'params'),
   asyncMiddleware(deleteLeaveRequest)
 );

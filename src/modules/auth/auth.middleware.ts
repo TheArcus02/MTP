@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { verifyToken } from './auth.utils';
 import { UnauthorizedError } from '../../shared/errors/app-error';
 
-export const authenticate = (
+export const authedMiddleware = (
   req: Request,
   _res: Response,
   next: NextFunction

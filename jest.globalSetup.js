@@ -24,6 +24,7 @@ export default async function globalSetup() {
 
   const testDb = drizzle(testClient);
 
+  await testDb.run(sql`DROP TABLE IF EXISTS leave_requests`);
   await testDb.run(sql`DROP TABLE IF EXISTS users`);
 
   await testDb.run(sql`
@@ -34,6 +35,21 @@ export default async function globalSetup() {
       full_name TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('employee', 'admin')),
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+
+  await testDb.run(sql`
+    CREATE TABLE leave_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      start_date INTEGER NOT NULL,
+      end_date INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+      admin_comment TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
 

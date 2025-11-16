@@ -9,6 +9,8 @@ import type {
   CreateLeaveRequestInput,
   UpdateLeaveRequestInput,
   LeaveRequestResponse,
+  ApproveLeaveRequestInput,
+  RejectLeaveRequestInput,
 } from './leave-request.types';
 
 class LeaveRequestService {
@@ -136,6 +138,81 @@ class LeaveRequestService {
     }
 
     await db.delete(leaveRequests).where(eq(leaveRequests.id, requestId));
+  }
+
+  async getAllLeaveRequests(): Promise<LeaveRequestResponse[]> {
+    const requests = await db
+      .select()
+      .from(leaveRequests)
+      .orderBy(leaveRequests.createdAt);
+
+    return requests.map((req) => this.mapToResponse(req));
+  }
+
+  async approveLeaveRequest(
+    requestId: number,
+    data: ApproveLeaveRequestInput
+  ): Promise<LeaveRequestResponse> {
+    const [existingRequest] = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, requestId))
+      .limit(1);
+
+    if (!existingRequest) {
+      throw new NotFoundError('Leave request not found');
+    }
+
+    if (existingRequest.status !== 'pending') {
+      throw new ConflictError(
+        'Only pending leave requests can be approved'
+      );
+    }
+
+    const [approvedRequest] = await db
+      .update(leaveRequests)
+      .set({
+        status: 'approved',
+        adminComment: data.adminComment || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(leaveRequests.id, requestId))
+      .returning();
+
+    return this.mapToResponse(approvedRequest);
+  }
+
+  async rejectLeaveRequest(
+    requestId: number,
+    data: RejectLeaveRequestInput
+  ): Promise<LeaveRequestResponse> {
+    const [existingRequest] = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, requestId))
+      .limit(1);
+
+    if (!existingRequest) {
+      throw new NotFoundError('Leave request not found');
+    }
+
+    if (existingRequest.status !== 'pending') {
+      throw new ConflictError(
+        'Only pending leave requests can be rejected'
+      );
+    }
+
+    const [rejectedRequest] = await db
+      .update(leaveRequests)
+      .set({
+        status: 'rejected',
+        adminComment: data.adminComment,
+        updatedAt: new Date(),
+      })
+      .where(eq(leaveRequests.id, requestId))
+      .returning();
+
+    return this.mapToResponse(rejectedRequest);
   }
 
   private mapToResponse(request: typeof leaveRequests.$inferSelect): LeaveRequestResponse {

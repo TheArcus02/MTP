@@ -8,6 +8,8 @@ describe('Leave Request Integration Tests', () => {
   let employeeId: number;
   let anotherEmployeeToken: string;
   let anotherEmployeeId: number;
+  let adminToken: string;
+  let adminId: number;
 
   beforeEach(async () => {
     await db.delete(leaveRequests);
@@ -42,6 +44,20 @@ describe('Leave Request Integration Tests', () => {
       password: 'password123',
     });
     anotherEmployeeToken = anotherLoginRes.body.data.token;
+
+    const adminRes = await request(app).post('/api/auth/register').send({
+      email: 'admin@example.com',
+      password: 'password123',
+      fullName: 'Admin User',
+      role: 'admin',
+    });
+    adminId = adminRes.body.data.userId;
+
+    const adminLoginRes = await request(app).post('/api/auth/login').send({
+      email: 'admin@example.com',
+      password: 'password123',
+    });
+    adminToken = adminLoginRes.body.data.token;
   });
 
   describe('POST /api/leave-requests', () => {
@@ -521,6 +537,355 @@ describe('Leave Request Integration Tests', () => {
 
     it('should fail without authentication', async () => {
       const response = await request(app).delete('/api/leave-requests/1');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('GET /api/admin/leave-requests', () => {
+    it('should get all leave requests as admin', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Employee 1 vacation request',
+        });
+
+      await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${anotherEmployeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Employee 2 vacation request',
+        });
+
+      const response = await request(app)
+        .get('/api/admin/leave-requests')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data).toHaveLength(2);
+    });
+
+    it('should fail when accessed by employee', async () => {
+      const response = await request(app)
+        .get('/api/admin/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`);
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail without authentication', async () => {
+      const response = await request(app).get('/api/admin/leave-requests');
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('PATCH /api/admin/leave-requests/:id/approve', () => {
+    it('should approve a pending leave request', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request to be approved',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Approved - enjoy your vacation!',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('id', requestId);
+      expect(response.body.data).toHaveProperty('status', 'approved');
+      expect(response.body.data).toHaveProperty(
+        'adminComment',
+        'Approved - enjoy your vacation!'
+      );
+    });
+
+    it('should approve without admin comment', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request to be approved',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('status', 'approved');
+    });
+
+    it('should fail when employee tries to approve', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/approve`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          adminComment: 'Trying to self-approve',
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail with non-existent request id', async () => {
+      const response = await request(app)
+        .patch('/api/admin/leave-requests/99999/approve')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Approving non-existent request',
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail when approving already approved request', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'First approval',
+        });
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/approve`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Trying to approve again',
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail without authentication', async () => {
+      const response = await request(app)
+        .patch('/api/admin/leave-requests/1/approve')
+        .send({
+          adminComment: 'No auth',
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('PATCH /api/admin/leave-requests/:id/reject', () => {
+    it('should reject a pending leave request', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request to be rejected',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Rejected - insufficient staffing during this period',
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('id', requestId);
+      expect(response.body.data).toHaveProperty('status', 'rejected');
+      expect(response.body.data).toHaveProperty(
+        'adminComment',
+        'Rejected - insufficient staffing during this period'
+      );
+    });
+
+    it('should fail when rejecting without admin comment', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail when employee tries to reject', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/reject`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          adminComment: 'Trying to self-reject',
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail with non-existent request id', async () => {
+      const response = await request(app)
+        .patch('/api/admin/leave-requests/99999/reject')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Rejecting non-existent request',
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail when rejecting already rejected request', async () => {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + 7);
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const createRes = await request(app)
+        .post('/api/leave-requests')
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          reason: 'Vacation request',
+        });
+
+      const requestId = createRes.body.data.id;
+
+      await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'First rejection',
+        });
+
+      const response = await request(app)
+        .patch(`/api/admin/leave-requests/${requestId}/reject`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          adminComment: 'Trying to reject again',
+        });
+
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should fail without authentication', async () => {
+      const response = await request(app)
+        .patch('/api/admin/leave-requests/1/reject')
+        .send({
+          adminComment: 'No auth',
+        });
 
       expect(response.status).toBe(401);
       expect(response.body.success).toBe(false);

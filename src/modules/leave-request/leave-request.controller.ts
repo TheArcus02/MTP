@@ -3,6 +3,8 @@ import { leaveRequestService } from './leave-request.service';
 import type {
   CreateLeaveRequestInput,
   UpdateLeaveRequestInput,
+  ApproveLeaveRequestInput,
+  RejectLeaveRequestInput,
 } from './leave-request.types';
 import { successResponse } from '../../shared/utils/response';
 
@@ -64,4 +66,38 @@ export const deleteLeaveRequest = async (
   const requestId = Number(req.params.id);
   await leaveRequestService.deleteLeaveRequest(userId, requestId);
   successResponse(res, { message: 'Leave request deleted successfully' });
+};
+
+export const getAllLeaveRequests = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const leaveRequests = await leaveRequestService.getAllLeaveRequests();
+  successResponse(res, leaveRequests);
+};
+
+export const approveLeaveRequest = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const requestId = Number(req.params.id);
+  const data = req.body as ApproveLeaveRequestInput;
+  const leaveRequest = await leaveRequestService.approveLeaveRequest(
+    requestId,
+    data
+  );
+  successResponse(res, leaveRequest);
+};
+
+export const rejectLeaveRequest = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const requestId = Number(req.params.id);
+  const data = req.body as RejectLeaveRequestInput;
+  const leaveRequest = await leaveRequestService.rejectLeaveRequest(
+    requestId,
+    data
+  );
+  successResponse(res, leaveRequest);
 };
