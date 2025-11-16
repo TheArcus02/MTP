@@ -47,6 +47,7 @@ A TypeScript REST API backend for managing employee vacation/leave requests with
 - **Always use class-based services**: Services should be implemented as classes with methods
 - **Export singleton instance**: Export a single instance (e.g., `export const authService = new AuthService()`)
 - **Example pattern**:
+
   ```typescript
   class AuthService {
     async registerUser(data: RegisterRequest): Promise<UserResponse> {
@@ -124,7 +125,7 @@ src/
             └── holidays.integration.test.ts
 
 docs/
-├── database-diagram.md               # Mermaid ERD diagram
+├── database-documentation.md               # Database documentation
 └── user-stories.md                   # Complete user stories list
 ```
 
@@ -232,11 +233,11 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 2: Authentication Module
 
-1. Write auth tests (modules/auth/__tests__/auth.integration.test.ts)
-2. Auth utilities - JWT & password (modules/auth/auth.utils.ts + modules/auth/__tests__/auth.utils.test.ts)
+1. Write auth tests (modules/auth/**tests**/auth.integration.test.ts)
+2. Auth utilities - JWT & password (modules/auth/auth.utils.ts + modules/auth/**tests**/auth.utils.test.ts)
 3. Auth types (modules/auth/auth.types.ts)
 4. Auth validators (modules/auth/auth.validators.ts) - Use `import { z } from 'zod/v4'`
-5. Auth service (modules/auth/auth.service.ts + modules/auth/__tests__/auth.service.test.ts)
+5. Auth service (modules/auth/auth.service.ts + modules/auth/**tests**/auth.service.test.ts)
 6. Auth middleware (modules/auth/auth.middleware.ts)
 7. Auth controller (modules/auth/auth.controller.ts)
 8. Auth routes (modules/auth/auth.routes.ts)
@@ -245,10 +246,10 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 3: Leave Request Module (Employee CRUD)
 
-1. Write leave request tests (modules/leave-request/__tests__/leaveRequest.integration.test.ts)
+1. Write leave request tests (modules/leave-request/**tests**/leaveRequest.integration.test.ts)
 2. Leave request types (modules/leave-request/leaveRequest.types.ts)
 3. Leave request validators (modules/leave-request/leaveRequest.validators.ts) - Use `import { z } from 'zod/v4'`
-4. Leave request service (modules/leave-request/leaveRequest.service.ts + modules/leave-request/__tests__/leaveRequest.service.test.ts)
+4. Leave request service (modules/leave-request/leaveRequest.service.ts + modules/leave-request/**tests**/leaveRequest.service.test.ts)
 5. Leave request controller (modules/leave-request/leaveRequest.controller.ts)
 6. Leave request routes (modules/leave-request/leaveRequest.routes.ts)
 7. Create module documentation (modules/leave-request/claude.md)
@@ -256,7 +257,7 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 4: Admin Approval System
 
-1. Write admin tests (extend modules/leave-request/__tests__/leaveRequest.integration.test.ts)
+1. Write admin tests (extend modules/leave-request/**tests**/leaveRequest.integration.test.ts)
 2. Role middleware (modules/leave-request/leaveRequest.middleware.ts)
 3. Admin service methods (extend modules/leave-request/leaveRequest.service.ts)
 4. Admin controller methods (extend modules/leave-request/leaveRequest.controller.ts)
@@ -266,7 +267,7 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 5: External API Integration (Holidays)
 
-1. Write holidays tests (modules/holidays/__tests__/holidays.integration.test.ts)
+1. Write holidays tests (modules/holidays/**tests**/holidays.integration.test.ts)
 2. Holidays service (modules/holidays/holidays.service.ts)
 3. Holidays controller (modules/holidays/holidays.controller.ts)
 4. Holidays routes (modules/holidays/holidays.routes.ts)
@@ -275,7 +276,7 @@ Request → Route → Controller → Service → Model → Database
 
 ### Phase 6: Documentation
 
-1. Database diagram (docs/database-diagram.md with Mermaid)
+1. Database documentation
 2. User stories (docs/user-stories.md)
 3. API documentation in README or separate doc
 
@@ -459,7 +460,7 @@ Import endpoints and test:
 - [ ] Implement Phase 4 (Admin) with TDD
 - [ ] Implement Phase 5 (External API) with TDD
 - [ ] Write documentation
-- [ ] Create database diagram
+- [ ] Create database documentation
 - [ ] Document user stories
 - [ ] Run full test suite
 - [ ] Test all endpoints in Postman

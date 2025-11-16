@@ -5,3 +5,6 @@ dist
 mtp.db
 test.db
 coverage
+.claude/*
+claude.md
+CLAUDE.md
